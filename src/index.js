@@ -2,9 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
-import { initializeFirebase } from './push-notification';
+import { PushNotification } from './push-notification';
 import registerServiceWorker from './registerServiceWorker';
 
-ReactDOM.render(<App />, document.getElementById('root'));
+const pushNotifcation = new PushNotification();
+ReactDOM.render(<App push={pushNotifcation} />, document.getElementById('root'));
 registerServiceWorker();
-initializeFirebase();
