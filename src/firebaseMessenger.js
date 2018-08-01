@@ -1,9 +1,9 @@
-import firebase from "firebase";
+import firebase from 'firebase';
 
-export class PushNotification {
+export class FirebaseMessenger {
   constructor() {
     firebase.initializeApp({
-      messagingSenderId: "1082867131539"
+      messagingSenderId: '1082867131539'
     });
     console.log('Initialized Firebase app');
 
@@ -12,7 +12,7 @@ export class PushNotification {
 
   getMessaging = () => {
     return this.messaging;
-  }
+  };
 
   askForPermissionToReceiveNotifications = async () => {
     try {
