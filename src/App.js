@@ -1,11 +1,14 @@
 import React, { Component, Fragment } from 'react';
-import { Alert, Button, Layout, notification, message } from 'antd';
+import { Alert, Button, Checkbox, Layout, notification, message } from 'antd';
 
 import axios from 'axios';
 import './App.css';
+import lineup from './lineup-2018.json';
 
+const CheckboxGroup = Checkbox.Group;
 const { Header, Footer, Content } = Layout;
 
+const BAND_SELECTION_LS_KEY = 'VOID_FEST_BAND_SELECTION';
 const BASE_URL = 'https://void-fest-pwa.herokuapp.com';
 const FCM_SERVER_URL = `${BASE_URL}/api/webpush/topic/`;
 
@@ -13,14 +16,50 @@ class App extends Component {
   constructor(props) {
     super(props);
 
+    // FIXME extract this arr/obj methods
+    this.defaultLineupValues = {};
+
+    const addValueToEvent = (lineupDay, valuePrefix) => {
+      for (const stage in lineupDay) {
+        let count = 0;
+        for (const event of lineupDay[stage]) {
+          const value = `${valuePrefix}_${stage}_${count}`;
+          this.defaultLineupValues[value] = false;
+          event.value = value;
+          count++;
+        }
+      }
+    };
+
+    for (const day in lineup) {
+      switch (day) {
+        case 'FRIDAY':
+          addValueToEvent(lineup.FRIDAY, 'FR');
+          break;
+        case 'SATURDAY':
+          addValueToEvent(lineup.SATURDAY, 'SA');
+          break;
+        default:
+          break;
+      }
+    }
+
+    const storedBandSelection = localStorage.getItem(BAND_SELECTION_LS_KEY);
+
     // Set initial state
     this.state = {
       sentTokenToServer: false,
       token: null,
       message: null,
       error: null,
-      isLoading: false
+      isLoading: false,
+      bandSelectionValues: storedBandSelection ? JSON.parse(storedBandSelection) : this.defaultLineupValues
     };
+
+    // FIXME: Remove
+    console.log('LINEUP VALUES', this.defaultLineupValues);
+    console.log('LINEUP', lineup);
+    console.log('STATE', this.state);
 
     const messaging = this.props.messenger.getMessaging();
 
@@ -38,8 +77,7 @@ class App extends Component {
         }
       })
       .catch(error => {
-        console.error('An error occurred while retrieving token. ', error);
-        this.setState({ sentTokenToServer: false, error });
+        this.showErrorMessage('Error while getting token', error);
       });
 
     messaging.onMessage(payload => {
@@ -62,8 +100,7 @@ class App extends Component {
           this.sendTokenToServer(refreshedToken);
         })
         .catch(error => {
-          console.log('Unable to retrieve refreshed token ', error);
-          this.setState({ sentTokenToServer: false, error });
+          this.showErrorMessage('Error while refreshing token', error);
         });
     });
   }
@@ -72,7 +109,9 @@ class App extends Component {
     message.success(text);
   };
 
-  showErrorMessage = text => {
+  showErrorMessage = (text, error) => {
+    console.error(text, error);
+    this.setState({ sentTokenToServer: false, error: `${text}: ${JSON.stringify(error)}` });
     message.error(text);
   };
 
@@ -94,8 +133,7 @@ class App extends Component {
         console.log(response);
       })
       .catch(error => {
-        this.setState({ sentTokenToServer: false, error });
-        console.error(error);
+        this.showErrorMessage('Error while subscribing push notifications', error);
       })
       .finally(() => {
         hide();
@@ -120,8 +158,7 @@ class App extends Component {
         this.setState({ token: null, sentTokenToServer: false });
       })
       .catch(error => {
-        console.error(error);
-        this.setState({ sentTokenToServer: false, error });
+        this.showErrorMessage('Error while unsubscribing from push notifications', error);
       })
       .finally(() => {
         hide();
@@ -144,12 +181,44 @@ class App extends Component {
           console.log(response);
         })
         .catch(error => {
-          console.error(error);
+          this.showErrorMessage('Error while sending test push notifications', error);
         })
         .finally(() => {
           hide();
         });
     }, 3000);
+  };
+
+  getCheckboxDefaultValues = eventArr => {
+    const bandSelectionValues = { ...this.state.bandSelectionValues };
+    return eventArr.map(event => event.value).filter(value => bandSelectionValues[value]);
+  };
+
+  getCheckboxOptions = eventArr => {
+    return eventArr.map(event => {
+      return {
+        label: `${event.time} ${event.band}`,
+        value: event.value
+      };
+    });
+  };
+
+  updateBandSelectionValues = (checkedValues, cbGroupName) => {
+    let bandSelectionValues = { ...this.state.bandSelectionValues };
+
+    if (checkedValues.length === 0) {
+      const filteredKeys = Object.keys(bandSelectionValues).filter(key => key.includes(cbGroupName));
+      for (const key of filteredKeys) {
+        bandSelectionValues[key] = false;
+      }
+    } else {
+      for (const value of checkedValues) {
+        bandSelectionValues[value] = true;
+      }
+    }
+
+    this.setState({ bandSelectionValues });
+    localStorage.setItem(BAND_SELECTION_LS_KEY, JSON.stringify(bandSelectionValues));
   };
 
   render() {
@@ -189,6 +258,48 @@ class App extends Component {
                   type="warning"
                 />
               )}
+              <div>
+                <h1 style={{ marginBottom: 10 }}>FRIDAY</h1>
+                <h2 style={{ marginBottom: 10 }}>MAIN STAGE</h2>
+                <CheckboxGroup
+                  style={{ marginBottom: 10 }}
+                  options={this.getCheckboxOptions(lineup.FRIDAY.MAIN_STAGE)}
+                  defaultValue={this.getCheckboxDefaultValues(lineup.FRIDAY.MAIN_STAGE)}
+                  onChange={event => {
+                    this.updateBandSelectionValues(event, 'FR_MAIN_STAGE');
+                  }}
+                />
+                <h2 style={{ marginBottom: 10 }}>TENT STAGE</h2>
+                <CheckboxGroup
+                  style={{ marginBottom: 10 }}
+                  options={this.getCheckboxOptions(lineup.FRIDAY.TENT_STAGE)}
+                  defaultValue={this.getCheckboxDefaultValues(lineup.FRIDAY.TENT_STAGE)}
+                  onChange={event => {
+                    this.updateBandSelectionValues(event, 'FR_TENT_STAGE');
+                  }}
+                />
+              </div>
+              <div>
+                <h1 style={{ marginBottom: 10 }}>SATURDAY</h1>
+                <h2 style={{ marginBottom: 10 }}>MAIN STAGE</h2>
+                <CheckboxGroup
+                  style={{ marginBottom: 10 }}
+                  options={this.getCheckboxOptions(lineup.SATURDAY.MAIN_STAGE)}
+                  defaultValue={this.getCheckboxDefaultValues(lineup.SATURDAY.MAIN_STAGE)}
+                  onChange={event => {
+                    this.updateBandSelectionValues(event, 'SA_MAIN_STAGE');
+                  }}
+                />
+                <h2 style={{ marginBottom: 10 }}>TENT STAGE</h2>
+                <CheckboxGroup
+                  style={{ marginBottom: 10 }}
+                  options={this.getCheckboxOptions(lineup.SATURDAY.TENT_STAGE)}
+                  defaultValue={this.getCheckboxDefaultValues(lineup.SATURDAY.TENT_STAGE)}
+                  onChange={event => {
+                    this.updateBandSelectionValues(event, 'SA_TENT_STAGE');
+                  }}
+                />
+              </div>
             </div>
           </Content>
           <Footer style={{ textAlign: 'center' }}>Created with &hearts; by Mokkapps ©2018 </Footer>

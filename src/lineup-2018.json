@@ -1,0 +1,36 @@
+{
+  "FRIDAY": {
+    "MAIN_STAGE": [
+      { "time": "15:00-15:45", "band": "BLACK VOODOO TRAIN" },
+      { "time": "16:30-17:30", "band": "RUBY THE HATCHET" },
+      { "time": "18:15-19:15", "band": "UNSANE" },
+      { "time": "20:00-21:00", "band": "PALLBEARER" },
+      { "time": "22:00-23:00", "band": "THE WYTCHES" },
+      { "time": "00:00-01:00", "band": "HÄLLAS" }
+    ],
+    "TENT_STAGE": [
+      { "time": "15:45-16:30", "band": "YEAHRS" },
+      { "time": "17:30-18:15", "band": "FRIENDS OF GAS" },
+      { "time": "19:15-20:00", "band": "FCKR" },
+      { "time": "21:00-22:00", "band": "HIEROPHANT" },
+      { "time": "23:00-23:45", "band": "FULL OF HELL" }
+    ]
+  },
+  "SATURDAY": {
+    "MAIN_STAGE": [
+      { "time": "15:00-15:45", "band": "BLACK SALVATION" },
+      { "time": "16:30-17:30", "band": "HÄXXAN" },
+      { "time": "18:15-19:15", "band": "MAGGOT HEART" },
+      { "time": "20:15-21:15", "band": "SOMALI YACHT CLUB" },
+      { "time": "22:15-23:20", "band": "HIGH ON FIRE" },
+      { "time": "00:30-01:30", "band": "SLOMATICS" }
+    ],
+    "TENT_STAGE": [
+      { "time": "15:45-16:30", "band": "CARRION MOTHER" },
+      { "time": "17:30-18:15", "band": "VALBORG" },
+      { "time": "19:15-20:00", "band": "OCCULTA" },
+      { "time": "21:00-22:15", "band": "BLOOD INCANTATION" },
+      { "time": "23:00-00:15", "band": "DIRTY FENCES" }
+    ]
+  }
+}
