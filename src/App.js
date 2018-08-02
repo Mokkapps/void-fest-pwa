@@ -6,7 +6,7 @@ import './App.css';
 
 const { Header, Footer, Content } = Layout;
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'https://void-fest-pwa.herokuapp.com';
 const FCM_SERVER_URL = `${BASE_URL}/api/webpush/topic/`;
 
 class App extends Component {
@@ -96,7 +96,8 @@ class App extends Component {
       .catch(error => {
         this.setState({ sentTokenToServer: false, error });
         console.error(error);
-      }).finally(() => {
+      })
+      .finally(() => {
         hide();
       });
   };
@@ -121,7 +122,8 @@ class App extends Component {
       .catch(error => {
         console.error(error);
         this.setState({ sentTokenToServer: false, error });
-      }).finally(() => {
+      })
+      .finally(() => {
         hide();
       });
   };
@@ -143,7 +145,8 @@ class App extends Component {
         })
         .catch(error => {
           console.error(error);
-        }).finally(() => {
+        })
+        .finally(() => {
           hide();
         });
     }, 3000);
@@ -158,18 +161,34 @@ class App extends Component {
           </Header>
           <Content style={{ height: '100vh', margin: '16px 0', padding: '0 50px' }}>
             <div style={{ background: '#fff', padding: 24, minHeight: 280 }}>
-              <Alert style={{ marginBottom: 10 }} message="This project is still under heavy development. Expect bad design and maybe non working push notification 🤪" type="info" showIcon />
+              <Alert
+                style={{ marginBottom: 10 }}
+                message="This project is still under heavy development. Expect bad design and maybe non working push notification 🤪"
+                type="info"
+                showIcon
+              />
               {this.state.token ? null : <Button onClick={this.askForPermission}>Click to request permission</Button>}
               {this.state.token ? (
                 <Fragment>
-                  <Button style={{ marginRight: 10 }} onClick={this.triggerTestNotification}>Trigger test notification after 3s</Button>
+                  <Button style={{ marginRight: 10 }} onClick={this.triggerTestNotification}>
+                    Trigger test notification after 3s
+                  </Button>
                   <Button onClick={this.unsubscribeTokenFromServer}>Unsubscribe from notifications</Button>
                 </Fragment>
               ) : null}
-              {this.state.sentTokenToServer ? 
-                <Alert style={{ marginTop: 10 }} message="Successfully registered for push notifications" type="success" /> : 
-                <Alert style={{ marginTop: 10 }} message="You first need to request permission to be able to receive push notifications" type="warning" />
-              }
+              {this.state.sentTokenToServer ? (
+                <Alert
+                  style={{ marginTop: 10 }}
+                  message="Successfully registered for push notifications"
+                  type="success"
+                />
+              ) : (
+                <Alert
+                  style={{ marginTop: 10 }}
+                  message="You first need to request permission to be able to receive push notifications"
+                  type="warning"
+                />
+              )}
             </div>
           </Content>
           <Footer style={{ textAlign: 'center' }}>Created with &hearts; by Mokkapps ©2018 </Footer>
