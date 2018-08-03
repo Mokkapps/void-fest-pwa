@@ -1,6 +1,6 @@
 import firebase from 'firebase';
 
-export class FirebaseMessenger {
+export default class FirebaseMessenger {
   constructor() {
     firebase.initializeApp({
       messagingSenderId: '1082867131539'
@@ -10,9 +10,7 @@ export class FirebaseMessenger {
     this.messaging = firebase.messaging();
   }
 
-  getMessaging = () => {
-    return this.messaging;
-  };
+  getMessaging = () => this.messaging;
 
   askForPermissionToReceiveNotifications = async () => {
     try {
@@ -21,6 +19,7 @@ export class FirebaseMessenger {
       return this.messaging.getToken();
     } catch (error) {
       console.error(error);
+      return Promise.reject(error);
     }
   };
 
