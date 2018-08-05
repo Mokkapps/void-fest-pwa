@@ -1,71 +1,39 @@
 import React, { Component, Fragment } from 'react';
-import { Alert, Button, Checkbox, Layout, notification, message } from 'antd';
-
+import { Alert, Button, Layout, notification, message } from 'antd';
 import axios from 'axios';
-import './App.css';
-import lineup from './lineup-2018.json';
 
-const CheckboxGroup = Checkbox.Group;
-const { Header, Footer, Content } = Layout;
+import './App.css';
+import LayoutHeader from './LayoutHeader';
+import LayoutFooter from './LayoutFooter';
+import BandSelection from './BandSelection';
+
+const { Content } = Layout;
 
 const BAND_SELECTION_LS_KEY = 'VOID_FEST_BAND_SELECTION';
 const BASE_URL = 'https://void-fest-pwa.herokuapp.com';
 const FCM_SERVER_URL = `${BASE_URL}/api/webpush/topic/`;
+const FCM_TOPIC = 'voidfest2018';
 
 class App extends Component {
   constructor(props) {
     super(props);
 
-    // FIXME extract this arr/obj methods
-    this.defaultLineupValues = {};
-
-    const addValueToEvent = (lineupDay, valuePrefix) => {
-      for (const stage in lineupDay) {
-        let count = 0;
-        for (const event of lineupDay[stage]) {
-          const value = `${valuePrefix}_${stage}_${count}`;
-          this.defaultLineupValues[value] = false;
-          event.value = value;
-          count++;
-        }
-      }
-    };
-
-    for (const day in lineup) {
-      switch (day) {
-        case 'FRIDAY':
-          addValueToEvent(lineup.FRIDAY, 'FR');
-          break;
-        case 'SATURDAY':
-          addValueToEvent(lineup.SATURDAY, 'SA');
-          break;
-        default:
-          break;
-      }
-    }
-
-    const storedBandSelection = localStorage.getItem(BAND_SELECTION_LS_KEY);
-
     // Set initial state
     this.state = {
       sentTokenToServer: false,
       token: null,
+      editMode: false,
       message: null,
       error: null,
-      isLoading: false,
-      bandSelectionValues: storedBandSelection ? JSON.parse(storedBandSelection) : this.defaultLineupValues
+      isLoading: false
     };
 
-    // FIXME: Remove
-    console.log('LINEUP VALUES', this.defaultLineupValues);
-    console.log('LINEUP', lineup);
-    console.log('STATE', this.state);
-
-    const messaging = this.props.messenger.getMessaging();
+    let { messenger } = this.props;
+    messenger = messenger.getMessaging();
 
     // Get Instance ID token. Initially this makes a network call, once retrieved
     // subsequent calls to getToken will return from cache.
-    messaging
+    messenger
       .getToken()
       .then(currentToken => {
         if (currentToken) {
@@ -80,7 +48,7 @@ class App extends Component {
         this.showErrorMessage('Error while getting token', error);
       });
 
-    messaging.onMessage(payload => {
+    messenger.onMessage(payload => {
       console.log('Message received in foreground:', payload);
       this.setState({ message: payload.data });
       this.showNotification(
@@ -91,10 +59,10 @@ class App extends Component {
       );
     });
 
-    messaging.onTokenRefresh(() => {
-      messaging
+    messenger.onTokenRefresh(() => {
+      messenger
         .getToken()
-        .then(function(refreshedToken) {
+        .then(refreshedToken => {
           console.log('Token refreshed.');
           this.setState({ token: refreshedToken });
           this.sendTokenToServer(refreshedToken);
@@ -125,7 +93,7 @@ class App extends Component {
   sendTokenToServer = token => {
     const hide = message.loading('Subscribing for push notifications..', 0);
     axios
-      .post(`${FCM_SERVER_URL}/voidfest2018/subscribe`, {
+      .post(`${FCM_SERVER_URL}/${FCM_TOPIC}/subscribe`, {
         token
       })
       .then(response => {
@@ -141,17 +109,19 @@ class App extends Component {
   };
 
   askForPermission = async () => {
-    const token = await this.props.messenger.askForPermissionToReceiveNotifications();
+    const { messenger } = this.props;
+    const token = await messenger.askForPermissionToReceiveNotifications();
     this.setState({ token });
     console.log('Received FCM registration token', token);
     this.sendTokenToServer(token);
   };
 
   unsubscribeTokenFromServer = async () => {
+    const { token } = this.state;
     const hide = message.loading('Unsubscribing from push notifications..', 0);
     axios
-      .post(`${FCM_SERVER_URL}/voidfest2018/unsubscribe`, {
-        token: this.state.token
+      .post(`${FCM_SERVER_URL}/${FCM_TOPIC}/unsubscribe`, {
+        token
       })
       .then(response => {
         console.log(response);
@@ -165,69 +135,49 @@ class App extends Component {
       });
   };
 
-  triggerTestNotification = async () => {
-    const hide = message.loading('Sending test push notification..', 0);
-    setTimeout(() => {
-      axios
-        .post(`${FCM_SERVER_URL}/voidfest2018/send`, {
-          data: {
-            band: 'Graveyard',
-            stage: 'main',
-            time: '13:45'
-          },
-          token: this.state.token
+  toggleEditMode = () => {
+    const { editMode } = this.state;
+    this.setState({ editMode: !editMode });
+  };
+
+  onSave = () => {
+    const bandSelection = localStorage.getItem(BAND_SELECTION_LS_KEY);
+    if (bandSelection) {
+      const bandSelObj = JSON.parse(bandSelection);
+      const selectionArr = [];
+      for (const sel in bandSelObj) {
+        if (bandSelObj[sel]) {
+          selectionArr.push(sel);
+        }
+      }
+      const { token } = this.state;
+      const selectionPromises = selectionArr.map(sel =>
+        axios.post(`${FCM_SERVER_URL}${FCM_TOPIC}-${sel}/subscribe`, {
+          token
         })
+      );
+
+      const hide = message.loading('Subscribing for push notifications..', 0);
+      Promise.all(selectionPromises)
         .then(response => {
+          this.setState({ sentTokenToServer: true });
           console.log(response);
         })
         .catch(error => {
-          this.showErrorMessage('Error while sending test push notifications', error);
+          this.showErrorMessage('Error while subscribing push notifications', error);
         })
         .finally(() => {
           hide();
         });
-    }, 3000);
-  };
-
-  getCheckboxDefaultValues = eventArr => {
-    const bandSelectionValues = { ...this.state.bandSelectionValues };
-    return eventArr.map(event => event.value).filter(value => bandSelectionValues[value]);
-  };
-
-  getCheckboxOptions = eventArr => {
-    return eventArr.map(event => {
-      return {
-        label: `${event.time} ${event.band}`,
-        value: event.value
-      };
-    });
-  };
-
-  updateBandSelectionValues = (checkedValues, cbGroupName) => {
-    let bandSelectionValues = { ...this.state.bandSelectionValues };
-
-    if (checkedValues.length === 0) {
-      const filteredKeys = Object.keys(bandSelectionValues).filter(key => key.includes(cbGroupName));
-      for (const key of filteredKeys) {
-        bandSelectionValues[key] = false;
-      }
-    } else {
-      for (const value of checkedValues) {
-        bandSelectionValues[value] = true;
-      }
     }
-
-    this.setState({ bandSelectionValues });
-    localStorage.setItem(BAND_SELECTION_LS_KEY, JSON.stringify(bandSelectionValues));
   };
 
   render() {
+    const { editMode, token, sentTokenToServer } = this.state;
     return (
       <div>
         <Layout style={{ height: '100vh' }}>
-          <Header>
-            <h1 style={{ color: 'white' }}>Void Fest 2018 Band Reminder</h1>
-          </Header>
+          <LayoutHeader />
           <Content style={{ height: '100vh', margin: '16px 0', padding: '0 50px' }}>
             <div style={{ background: '#fff', padding: 24, minHeight: 280 }}>
               <Alert
@@ -236,16 +186,15 @@ class App extends Component {
                 type="info"
                 showIcon
               />
-              {this.state.token ? null : <Button onClick={this.askForPermission}>Click to request permission</Button>}
-              {this.state.token ? (
+              {token ? null : <Button onClick={this.askForPermission}>Click to request permission</Button>}
+              {token ? (
                 <Fragment>
-                  <Button style={{ marginRight: 10 }} onClick={this.triggerTestNotification}>
-                    Trigger test notification after 3s
-                  </Button>
-                  <Button onClick={this.unsubscribeTokenFromServer}>Unsubscribe from notifications</Button>
+                  <Button onClick={this.toggleEditMode}>Edit</Button>
+                  {editMode ? <Button onClick={this.onSave}>Save</Button> : null}
+                  {/* <Button onClick={this.unsubscribeTokenFromServer}>Unsubscribe from notifications</Button> */}
                 </Fragment>
               ) : null}
-              {this.state.sentTokenToServer ? (
+              {sentTokenToServer ? (
                 <Alert
                   style={{ marginTop: 10 }}
                   message="Successfully registered for push notifications"
@@ -258,51 +207,10 @@ class App extends Component {
                   type="warning"
                 />
               )}
-              <div>
-                <h1 style={{ marginBottom: 10 }}>FRIDAY</h1>
-                <h2 style={{ marginBottom: 10 }}>MAIN STAGE</h2>
-                <CheckboxGroup
-                  style={{ marginBottom: 10 }}
-                  options={this.getCheckboxOptions(lineup.FRIDAY.MAIN_STAGE)}
-                  defaultValue={this.getCheckboxDefaultValues(lineup.FRIDAY.MAIN_STAGE)}
-                  onChange={event => {
-                    this.updateBandSelectionValues(event, 'FR_MAIN_STAGE');
-                  }}
-                />
-                <h2 style={{ marginBottom: 10 }}>TENT STAGE</h2>
-                <CheckboxGroup
-                  style={{ marginBottom: 10 }}
-                  options={this.getCheckboxOptions(lineup.FRIDAY.TENT_STAGE)}
-                  defaultValue={this.getCheckboxDefaultValues(lineup.FRIDAY.TENT_STAGE)}
-                  onChange={event => {
-                    this.updateBandSelectionValues(event, 'FR_TENT_STAGE');
-                  }}
-                />
-              </div>
-              <div>
-                <h1 style={{ marginBottom: 10 }}>SATURDAY</h1>
-                <h2 style={{ marginBottom: 10 }}>MAIN STAGE</h2>
-                <CheckboxGroup
-                  style={{ marginBottom: 10 }}
-                  options={this.getCheckboxOptions(lineup.SATURDAY.MAIN_STAGE)}
-                  defaultValue={this.getCheckboxDefaultValues(lineup.SATURDAY.MAIN_STAGE)}
-                  onChange={event => {
-                    this.updateBandSelectionValues(event, 'SA_MAIN_STAGE');
-                  }}
-                />
-                <h2 style={{ marginBottom: 10 }}>TENT STAGE</h2>
-                <CheckboxGroup
-                  style={{ marginBottom: 10 }}
-                  options={this.getCheckboxOptions(lineup.SATURDAY.TENT_STAGE)}
-                  defaultValue={this.getCheckboxDefaultValues(lineup.SATURDAY.TENT_STAGE)}
-                  onChange={event => {
-                    this.updateBandSelectionValues(event, 'SA_TENT_STAGE');
-                  }}
-                />
-              </div>
+              <BandSelection editMode={editMode} />
             </div>
           </Content>
-          <Footer style={{ textAlign: 'center' }}>Created with &hearts; by Mokkapps ©2018 </Footer>
+          <LayoutFooter />
         </Layout>
       </div>
     );
