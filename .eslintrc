@@ -9,6 +9,8 @@
     "no-console": "warn",
     "arrow-parens": "off",
     "no-restricted-syntax": 0,
+    "implicit-arrow-linebreak": "warn",
+    "function-paren-newline": "warn",
     "react/jsx-filename-extension": [1, { "extensions": [".js", ".jsx"] }]
   }
 }

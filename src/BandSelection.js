@@ -1,5 +1,5 @@
-import React, { Component } from 'react';
-import { Checkbox } from 'antd';
+import React, { Component, Fragment } from 'react';
+import { Checkbox, Divider } from 'antd';
 
 import lineup from './lineup-2018.json';
 
@@ -85,9 +85,9 @@ class BandSelection extends Component {
 
   render() {
     return (
-      <div>
-        <div>
-          <h1 style={{ marginBottom: 10 }}>FRIDAY</h1>
+      <Fragment>
+        <Fragment>
+          <h1 style={{ marginBottom: 10 }}>FRIDAY, 10.08.2018</h1>
           <h2 style={{ marginBottom: 10 }}>MAIN STAGE</h2>
           <CheckboxGroup
             style={{ marginBottom: 10 }}
@@ -106,9 +106,10 @@ class BandSelection extends Component {
               this.updateBandSelectionValues(event, 'FR_TENT_STAGE');
             }}
           />
-        </div>
-        <div>
-          <h1 style={{ marginBottom: 10 }}>SATURDAY</h1>
+        </Fragment>
+        <Divider />
+        <Fragment>
+          <h1 style={{ marginBottom: 10 }}>SATURDAY, 11.08.2018</h1>
           <h2 style={{ marginBottom: 10 }}>MAIN STAGE</h2>
           <CheckboxGroup
             style={{ marginBottom: 10 }}
@@ -127,8 +128,8 @@ class BandSelection extends Component {
               this.updateBandSelectionValues(event, 'SA_TENT_STAGE');
             }}
           />
-        </div>
-      </div>
+        </Fragment>
+      </Fragment>
     );
   }
 }

@@ -1,10 +1,9 @@
+# Void Fest Band Reminder
 
-> ## 🛠 Status: In Development
+This web application can be used to subscribe for push notifications which will inform 30 minutes before a band will play on the music festival [Void Fest 2018](www.voidfest.de).
 
-# Void Fest PWA
+This is a non-official Void Fest app and a hobby project of mine. Therefore I cannot guarantee for the correct lineup or faulty notifications in general.
 
-This website provides the possibility to send push notification which informs about the next band which will play on the music festival [Void Fest](www.voidfest.de).
-
-This frontend communicates with this [Node.js backend](https://github.com/Mokkapps/void-fest-pwa-server) to be able to subscribe for certain push notification topics.
+This frontend communicates with this [Node.js backend](https://github.com/Mokkapps/void-fest-pwa-server) to be able to subscribe/unsubscribe for certain push notification topics.
 
 This project was bootstrapped with [Create React App](https://github.com/facebookincubator/create-react-app).

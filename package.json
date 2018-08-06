@@ -1,7 +1,9 @@
 {
-  "name": "void-fest-pwa",
+  "name": "void-fest-band-reminder",
   "version": "0.1.0",
   "private": true,
+  "author": "Michael Hoffmann <kontakt@mokkapps.de>",
+  "license": "MIT",
   "dependencies": {
     "antd": "^3.7.3",
     "axios": "^0.18.0",

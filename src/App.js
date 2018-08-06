@@ -1,5 +1,7 @@
 import React, { Component, Fragment } from 'react';
-import { Alert, Button, Layout, notification, message } from 'antd';
+import PropTypes from 'prop-types';
+import styled from 'styled-components';
+import { Alert, Button, Divider, Layout, notification, message } from 'antd';
 import axios from 'axios';
 
 import './App.css';
@@ -14,18 +16,20 @@ const BASE_URL = 'https://void-fest-pwa.herokuapp.com';
 const FCM_SERVER_URL = `${BASE_URL}/api/webpush/topic/`;
 const FCM_TOPIC = 'voidfest2018';
 
+const ContentBody = styled.div`
+  background: #fff;
+  padding: 24px;
+  min-height: 280px;
+`;
+
 class App extends Component {
   constructor(props) {
     super(props);
 
     // Set initial state
     this.state = {
-      sentTokenToServer: false,
       token: null,
-      editMode: false,
-      message: null,
-      error: null,
-      isLoading: false
+      editMode: false
     };
 
     let { messenger } = this.props;
@@ -35,14 +39,8 @@ class App extends Component {
     // subsequent calls to getToken will return from cache.
     messenger
       .getToken()
-      .then(currentToken => {
-        if (currentToken) {
-          this.setState({ token: currentToken, sentTokenToServer: true });
-        } else {
-          // Show permission request.
-          console.log('No Instance ID token available. Request permission to generate one.');
-          this.setState({ sentTokenToServer: false });
-        }
+      .then(token => {
+        this.setState({ token: token || null });
       })
       .catch(error => {
         this.showErrorMessage('Error while getting token', error);
@@ -50,12 +48,9 @@ class App extends Component {
 
     messenger.onMessage(payload => {
       console.log('Message received in foreground:', payload);
-      this.setState({ message: payload.data });
       this.showNotification(
-        'Void Fest Reminder',
-        `Minimize/hide browser and send again to see native notification. Message payload: ${JSON.stringify(
-          payload.data
-        )}`
+        'Band Reminder',
+        `Band "${payload.data.band}" is playing at ${payload.data.time} on ${payload.data.stage} stage`
       );
     });
 
@@ -65,7 +60,6 @@ class App extends Component {
         .then(refreshedToken => {
           console.log('Token refreshed.');
           this.setState({ token: refreshedToken });
-          this.sendTokenToServer(refreshedToken);
         })
         .catch(error => {
           this.showErrorMessage('Error while refreshing token', error);
@@ -73,95 +67,35 @@ class App extends Component {
     });
   }
 
-  showSuccessMessage = text => {
-    message.success(text);
-  };
-
-  showErrorMessage = (text, error) => {
-    console.error(text, error);
-    this.setState({ sentTokenToServer: false, error: `${text}: ${JSON.stringify(error)}` });
-    message.error(text);
-  };
-
-  showNotification = (title, message) => {
-    notification.open({
-      message: title,
-      description: message
-    });
-  };
-
-  sendTokenToServer = token => {
-    const hide = message.loading('Subscribing for push notifications..', 0);
-    axios
-      .post(`${FCM_SERVER_URL}/${FCM_TOPIC}/subscribe`, {
-        token
-      })
-      .then(response => {
-        this.setState({ sentTokenToServer: true });
-        console.log(response);
-      })
-      .catch(error => {
-        this.showErrorMessage('Error while subscribing push notifications', error);
-      })
-      .finally(() => {
-        hide();
-      });
-  };
-
-  askForPermission = async () => {
-    const { messenger } = this.props;
-    const token = await messenger.askForPermissionToReceiveNotifications();
-    this.setState({ token });
-    console.log('Received FCM registration token', token);
-    this.sendTokenToServer(token);
-  };
-
-  unsubscribeTokenFromServer = async () => {
-    const { token } = this.state;
-    const hide = message.loading('Unsubscribing from push notifications..', 0);
-    axios
-      .post(`${FCM_SERVER_URL}/${FCM_TOPIC}/unsubscribe`, {
-        token
-      })
-      .then(response => {
-        console.log(response);
-        this.setState({ token: null, sentTokenToServer: false });
-      })
-      .catch(error => {
-        this.showErrorMessage('Error while unsubscribing from push notifications', error);
-      })
-      .finally(() => {
-        hide();
-      });
-  };
-
-  toggleEditMode = () => {
-    const { editMode } = this.state;
-    this.setState({ editMode: !editMode });
-  };
-
   onSave = () => {
     const bandSelection = localStorage.getItem(BAND_SELECTION_LS_KEY);
+
     if (bandSelection) {
       const bandSelObj = JSON.parse(bandSelection);
-      const selectionArr = [];
+      const selectedBands = [];
+      const unselectedBands = [];
+      const { token } = this.state;
+
       for (const sel in bandSelObj) {
         if (bandSelObj[sel]) {
-          selectionArr.push(sel);
+          selectedBands.push(sel);
+        } else {
+          unselectedBands.push(sel);
         }
       }
-      const { token } = this.state;
-      const selectionPromises = selectionArr.map(sel =>
-        axios.post(`${FCM_SERVER_URL}${FCM_TOPIC}-${sel}/subscribe`, {
-          token
-        })
+
+      const selectedPromises = selectedBands.map(sel =>
+        axios.post(`${FCM_SERVER_URL}${FCM_TOPIC}-${sel}/subscribe`, { token })
+      );
+      const unselectedPromises = unselectedBands.map(sel =>
+        axios.post(`${FCM_SERVER_URL}${FCM_TOPIC}-${sel}/unsubscribe`, { token })
       );
 
       const hide = message.loading('Subscribing for push notifications..', 0);
-      Promise.all(selectionPromises)
+      Promise.all(selectedPromises, unselectedPromises)
         .then(response => {
-          this.setState({ sentTokenToServer: true });
-          console.log(response);
+          console.log('Successfully updated push notifications', response);
+          this.showSuccessMessage('Successfully updated push notifications');
         })
         .catch(error => {
           this.showErrorMessage('Error while subscribing push notifications', error);
@@ -169,37 +103,80 @@ class App extends Component {
         .finally(() => {
           hide();
         });
+    } else {
+      this.showErrorMessage('Cannot save because band selection cannot be read');
     }
   };
 
+  toggleEditMode = () => {
+    const { editMode } = this.state;
+    this.setState({ editMode: !editMode });
+  };
+
+  askForPermission = async () => {
+    const { messenger } = this.props;
+    const token = await messenger.askForPermissionToReceiveNotifications();
+    console.log('Received FCM registration token', token);
+    this.setState({ token });
+  };
+
+  showSuccessMessage = text => {
+    message.success(text);
+  };
+
+  showErrorMessage = (text, error) => {
+    console.error(text, error);
+    message.error(text);
+  };
+
+  showNotification = (title, description) => {
+    notification.open({
+      message: title,
+      description
+    });
+  };
+
   render() {
-    const { editMode, token, sentTokenToServer } = this.state;
+    const { editMode, token } = this.state;
+    const infoText = `
+    This web application can be used to subscribe for push notifications which will inform 30 minutes before a band will play on Void Fest 2018.\r\n
+    You first need to request permission to receive any push notification from this website. 
+    Afterwards you see the lineup of this year's festival and you can edit for which band you would like to receive a notification.
+    `;
     return (
       <div>
         <Layout style={{ height: '100vh' }}>
           <LayoutHeader />
           <Content style={{ height: '100vh', margin: '16px 0', padding: '0 50px' }}>
-            <div style={{ background: '#fff', padding: 24, minHeight: 280 }}>
+            <ContentBody>
               <Alert
-                style={{ marginBottom: 10 }}
-                message="This project is still under heavy development. Expect bad design and maybe non working push notification 🤪"
+                style={{ marginBottom: '20px' }}
+                message="Informational Notes"
+                description={infoText}
                 type="info"
                 showIcon
               />
-              {token ? null : <Button onClick={this.askForPermission}>Click to request permission</Button>}
+              <Alert style={{ marginBottom: '20px' }} message="This is a non-official Void Fest app and a hobby project of mine. Therefore I cannot guarantee for the correct lineup or faulty notifications in general." type="warning" showIcon />
+              {token ? null : (
+                <Button size="large" type="primary" onClick={this.askForPermission}>
+                  Click to request permission for push notifications
+                </Button>
+              )}
               {token ? (
                 <Fragment>
-                  <Button onClick={this.toggleEditMode}>Edit</Button>
-                  {editMode ? <Button onClick={this.onSave}>Save</Button> : null}
-                  {/* <Button onClick={this.unsubscribeTokenFromServer}>Unsubscribe from notifications</Button> */}
+                  <Button size="large" type="primary" onClick={this.toggleEditMode}>
+                    Edit notification
+                  </Button>
+                  {editMode ? (
+                    <Button size="large" onClick={this.onSave}>
+                      Save your selection
+                    </Button>
+                  ) : null}
                 </Fragment>
               ) : null}
-              {sentTokenToServer ? (
-                <Alert
-                  style={{ marginTop: 10 }}
-                  message="Successfully registered for push notifications"
-                  type="success"
-                />
+              <Divider />
+              {token ? (
+                <BandSelection editMode={editMode} />
               ) : (
                 <Alert
                   style={{ marginTop: 10 }}
@@ -207,8 +184,7 @@ class App extends Component {
                   type="warning"
                 />
               )}
-              <BandSelection editMode={editMode} />
-            </div>
+            </ContentBody>
           </Content>
           <LayoutFooter />
         </Layout>
@@ -216,5 +192,9 @@ class App extends Component {
     );
   }
 }
+
+App.propTypes = {
+  messenger: PropTypes.func
+};
 
 export default App;
